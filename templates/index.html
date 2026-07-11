@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAN File Transfer - 局域网文件传输</title>
+<style>
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --success: #059669;
+  --success-light: #ecfdf5;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+  --transition: 180ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --text: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border: #334155;
+    --primary: #818cf8;
+    --primary-hover: #6366f1;
+    --primary-light: #1e1b4b;
+    --success: #34d399;
+    --success-light: #064e3b;
+    --danger: #f87171;
+    --danger-light: #450a0a;
+    --warning: #fbbf24;
+    --warning-light: #451a03;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.4);
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-title .icon { font-size: 1.4rem; }
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.header-info .addr {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+  white-space: nowrap;
+  font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-outline { background: transparent; border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { opacity: 0.85; }
+
+/* ============================================================
+   Main Layout
+   ============================================================ */
+.main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Tab Bar */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 4px;
+  box-shadow: var(--shadow);
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all var(--transition);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+.tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+.tab:hover:not(.active) {
+  background: var(--bg);
+}
+
+/* Panels */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ============================================================
+   Cards & Sections
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-header {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================================================
+   Drop Zone
+   ============================================================ */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--bg);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.drop-zone .drop-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+.drop-zone .drop-text {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+.drop-zone .drop-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: 6px;
+}
+
+/* ============================================================
+   Text Input Area
+   ============================================================ */
+.text-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.text-input-area textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color var(--transition);
+}
+.text-input-area textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+.text-input-area .text-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.text-input-area input[type="text"] {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+  flex: 1;
+}
+.text-input-area input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* ============================================================
+   Progress Bar
+   ============================================================ */
+.progress-area { margin-top: 16px; }
+.progress-item {
+  margin-bottom: 12px;
+}
+.progress-item .progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+.progress-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* ============================================================
+   File List
+   ============================================================ */
+.file-list { }
+.file-list-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+.file-list-empty .empty-icon { font-size: 2.5rem; opacity: 0.4; margin-bottom: 10px; }
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+.file-item:last-child { border-bottom: none; }
+.file-item:hover { background: var(--bg); }
+.file-item .file-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+.file-item .file-info { flex: 1; min-width: 0; }
+.file-item .file-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-item .file-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 12px;
+}
+.file-item .file-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Image preview in file list */
+.file-preview-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Toast / Notification
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  animation: slideIn 0.25s ease;
+  min-width: 260px;
+}
+.toast.success { border-left: 4px solid var(--success); }
+.toast.info { border-left: 4px solid var(--primary); }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================
+   Scan Modal
+   ============================================================ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal h3 { margin-bottom: 16px; }
+.modal .server-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.modal .server-item:hover { background: var(--bg); }
+.modal .server-item .server-name { font-weight: 500; }
+.modal .server-item .server-addr {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+.modal .scan-status {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 20px;
+}
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 640px) {
+  .header { padding: 10px 16px; }
+  .header-title { font-size: 1.1rem; }
+  .header-info { gap: 8px; }
+  .main { padding: 12px; }
+  .card { padding: 16px; }
+  .drop-zone { padding: 32px 16px; }
+  .file-item { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Header
+     ============================================================ -->
+<header class="header">
+  <div class="header-title">
+    <span class="icon">📁</span> LAN Transfer
+  </div>
+  <div class="header-info">
+    <span class="addr" id="serverAddr">http://{{ ip }}:{{ port }}</span>
+    <button class="btn btn-outline btn-sm" onclick="copyAddress()" title="复制地址">📋 复制</button>
+    <button class="btn btn-outline btn-sm" onclick="openScanModal()" title="扫描局域网">🔍 扫描</button>
+  </div>
+</header>
+
+<!-- ============================================================
+     Main Content
+     ============================================================ -->
+<div class="main">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('send')" id="tabSend">📤 发送 Send</button>
+    <button class="tab" onclick="switchTab('receive')" id="tabReceive">📥 接收 Receive</button>
+  </div>
+
+  <!-- ==========================================================
+       Send Panel
+       ========================================================== -->
+  <div class="panel active" id="panelSend">
+
+    <!-- File Drop Zone -->
+    <div class="card">
+      <div class="card-header">📎 发送文件</div>
+      <div class="drop-zone" id="dropZone"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)"
+           onclick="document.getElementById('fileInput').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">拖拽文件到此处，或点击选择</div>
+        <div class="drop-hint">支持所有文件类型，单个文件最大 2GB</div>
+      </div>
+      <input type="file" id="fileInput" multiple hidden onchange="handleFileSelect(event)">
+
+      <!-- Upload Progress -->
+      <div class="progress-area" id="progressArea"></div>
+    </div>
+
+    <!-- Text Message -->
+    <div class="card">
+      <div class="card-header">💬 发送文本消息</div>
+      <div class="text-input-area">
+        <textarea id="textContent" placeholder="在此输入文本内容...&#10;&#10;可以粘贴代码、笔记、链接等任意文字"></textarea>
+        <div class="text-actions">
+          <input type="text" id="textTitle" placeholder="标题（可选）" maxlength="60">
+          <button class="btn btn-primary" onclick="sendText()">📨 发送文本</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clipboard Paste -->
+    <div class="card">
+      <div class="card-header">📋 剪贴板快速发送</div>
+      <div style="text-align:center;padding:16px 0;">
+        <p style="color:var(--text-secondary);margin-bottom:12px;font-size:0.9rem;">
+          在页面任意位置按 <kbd style="background:var(--bg);padding:2px 8px;border-radius:4px;border:1px solid var(--border);">Ctrl+V</kbd>
+          粘贴剪贴板中的文字或图片
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       Receive Panel
+       ========================================================== -->
+  <div class="panel" id="panelReceive">
+
+    <!-- Download All -->
+    <div class="card" id="downloadAllCard" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <span style="font-weight:600;">📦 已接收 <span id="fileCount">0</span> 个文件</span>
+        <button class="btn btn-outline btn-sm" onclick="downloadAll()">⬇️ 打包下载全部</button>
+      </div>
+    </div>
+
+    <!-- File List -->
+    <div class="card">
+      <div class="card-header">📋 文件列表 <span style="font-weight:400;color:var(--text-secondary);font-size:0.85rem;" id="listStatus"></span></div>
+      <div class="file-list" id="fileList">
+        <div class="file-list-empty">
+          <div class="empty-icon">📭</div>
+          <p>暂无文件</p>
+          <p style="font-size:0.8rem;">等待发送方上传文件...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Scan Modal
+     ============================================================ -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">🔍 扫描局域网</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeScanModal()">✕</button>
+    </div>
+    <div id="scanResults">
+      <div class="scan-status">点击下方按钮开始扫描</div>
+    </div>
+    <div style="margin-top:16px;text-align:center;">
+      <button class="btn btn-primary" id="scanBtn" onclick="startScan()">🔍 开始扫描</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Toast Container
+     ============================================================ -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<!-- ============================================================
+     JavaScript
+     ============================================================ -->
+<script>
+// ============================================================
+// State
+// ============================================================
+let uploadedFiles = [];
+const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
+
+// ============================================================
+// Tab Switching
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  if (tab === 'receive') refreshFileList();
+}
+
+// ============================================================
+// Address / Copy
+// ============================================================
+function copyAddress() {
+  const addr = document.getElementById('serverAddr').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(addr).then(() => toast('地址已复制!', 'success'));
+  } else {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = addr;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('地址已复制!', 'success');
+  }
+}
+
+// ============================================================
+// Drag & Drop
+// ============================================================
+function handleDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length > 0) uploadFiles(files);
+}
+function handleFileSelect(e) {
+  const files = Array.from(e.target.files);
+  if (files.length > 0) uploadFiles(files);
+  e.target.value = '';
+}
+
+// ============================================================
+// File Upload
+// ============================================================
+async function uploadFiles(files) {
+  const progressArea = document.getElementById('progressArea');
+
+  for (const file of files) {
+    const itemId = 'progress_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+
+    // Create progress element
+    const div = document.createElement('div');
+    div.className = 'progress-item';
+    div.id = itemId;
+    div.innerHTML = `
+      <div class="progress-label">
+        <span>${escapeHtml(file.name)}</span>
+        <span class="pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="fill" style="width:0%"></div></div>
+    `;
+    progressArea.appendChild(div);
+
+    try {
+      if (file.size > CHUNK_SIZE) {
+        await uploadChunked(file, itemId);
+      } else {
+        await uploadSimple(file, itemId);
+      }
+      // Update progress to 100%
+      updateProgress(itemId, 100);
+      setTimeout(() => { const el = document.getElementById(itemId); if (el) el.remove(); }, 1500);
+    } catch (err) {
+      console.error('Upload error:', err);
+      updateProgress(itemId, -1, '❌ 上传失败: ' + err.message);
+    }
+  }
+}
+
+function updateProgress(itemId, pct, msg) {
+  const el = document.getElementById(itemId);
+  if (!el) return;
+  if (pct >= 0) {
+    el.querySelector('.fill').style.width = pct + '%';
+    el.querySelector('.pct').textContent = pct.toFixed(0) + '%';
+  }
+  if (msg) {
+    el.querySelector('.pct').textContent = msg;
+  }
+}
+
+async function uploadSimple(file, itemId) {
+  const formData = new FormData();
+  formData.append('files', file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        updateProgress(itemId, (e.loaded / e.total) * 100);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const resp = JSON.parse(xhr.responseText);
+        uploadedFiles.push(...resp.uploaded);
+        toast(`✅ ${file.name} 上传完成`, 'success');
+        resolve();
+      } else {
+        reject(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络错误'));
+    xhr.send(formData);
+  });
+}
+
+async function uploadChunked(file, itemId) {
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const uploadId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunk = file.slice(start, end);
+
+    const resp = await fetch('/api/upload/chunk', {
+      method: 'POST',
+      headers: {
+        'X-File-Name': encodeURIComponent(file.name),
+        'X-Chunk-Index': String(i),
+        'X-Chunk-Total': String(totalChunks),
+        'X-Upload-Id': uploadId,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: chunk,
+    });
+
+    if (!resp.ok) throw new Error('Chunk upload failed: ' + resp.status);
+
+    const result = await resp.json();
+    updateProgress(itemId, ((i + 1) / totalChunks) * 100);
+
+    if (result.assembled) {
+      toast(`✅ ${file.name} 上传完成`, 'success');
+    }
+  }
+}
+
+// ============================================================
+// Text Sending
+// ============================================================
+async function sendText() {
+  const content = document.getElementById('textContent').value.trim();
+  if (!content) { toast('请输入文本内容', 'info'); return; }
+
+  const title = document.getElementById('textTitle').value.trim();
+
+  try {
+    const resp = await fetch('/api/text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, title }),
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      toast('✅ 文本已发送', 'success');
+      document.getElementById('textContent').value = '';
+      document.getElementById('textTitle').value = '';
+    }
+  } catch (err) {
+    toast('❌ 发送失败: ' + err.message, 'info');
+  }
+}
+
+// ============================================================
+// File List
+// ============================================================
+async function refreshFileList() {
+  try {
+    const resp = await fetch('/api/files');
+    const data = await resp.json();
+    renderFileList(data.files);
+  } catch (err) {
+    console.error('Failed to fetch file list:', err);
+  }
+}
+
+function renderFileList(files) {
+  const container = document.getElementById('fileList');
+  const countEl = document.getElementById('fileCount');
+  const downloadAllCard = document.getElementById('downloadAllCard');
+  const listStatus = document.getElementById('listStatus');
+
+  if (files.length === 0) {
+    container.innerHTML = `
+      <div class="file-list-empty">
+        <div class="empty-icon">📭</div>
+        <p>暂无文件</p>
+        <p style="font-size:0.8rem;">等待发送方上传文件...</p>
+      </div>`;
+    downloadAllCard.style.display = 'none';
+    listStatus.textContent = '';
+  } else {
+    countEl.textContent = files.length;
+    downloadAllCard.style.display = 'block';
+    listStatus.textContent = `(${files.length} 个文件)`;
+
+    container.innerHTML = files.map(f => {
+      const icon = fileIcon(f.type, f.name);
+      const filePath = f.path || f.name;  // path includes date folder
+      const previewHtml = f.type === 'image'
+        ? `<img class="file-preview-img" src="/api/download/${encodeURIComponent(filePath)}" alt="${escapeHtml(f.name)}" loading="lazy">`
+        : `<span class="file-icon">${icon}</span>`;
+
+      return `
+        <div class="file-item" id="file-${escapeHtml(filePath)}">
+          ${previewHtml}
+          <div class="file-info">
+            <div class="file-name" title="${escapeHtml(f.name)}">
+              ${escapeHtml(f.name)}
+              ${f.date ? `<span style="font-size:0.75rem;color:var(--text-secondary);margin-left:6px;">📅 ${f.date}</span>` : ''}
+            </div>
+            <div class="file-meta">
+              <span>${f.size_human}</span>
+              <span>${f.modified}</span>
+            </div>
+          </div>
+          <div class="file-actions">
+            <a class="btn btn-primary btn-sm" href="/api/download/${encodeURIComponent(filePath)}" download>⬇️ 下载</a>
+            <button class="btn btn-outline btn-sm" onclick="previewFile('${escapeAttr(filePath)}', '${f.type}')">👁️</button>
+            <button class="btn btn-outline btn-sm" onclick="deleteFile('${escapeAttr(filePath)}')">🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+function fileIcon(type, name) {
+  const icons = {
+    image: '🖼️', text: '📝', video: '🎬', audio: '🎵',
+    archive: '📦', document: '📄', file: '📎'
+  };
+  return icons[type] || '📎';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function escapeAttr(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+async function downloadAll() {
+  try {
+    const resp = await fetch('/api/files');
+    const data = await resp.json();
+    for (const f of data.files) {
+      const filePath = f.path || f.name;
+      const a = document.createElement('a');
+      a.href = '/api/download/' + encodeURIComponent(filePath);
+      a.download = f.name;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Small delay between downloads
+      await new Promise(r => setTimeout(r, 300));
+    }
+    toast(`⬇️ 开始下载 ${data.files.length} 个文件`, 'success');
+  } catch (err) {
+    toast('❌ 下载失败', 'info');
+  }
+}
+
+function previewFile(filepath, type) {
+  const url = '/api/download/' + encodeURIComponent(filepath);
+  if (type === 'image' || type === 'text') {
+    window.open(url, '_blank');
+  } else if (type === 'video' || type === 'audio') {
+    // Open in a mini player window
+    const w = window.open('', '_blank', 'width=640,height=480');
+    w.document.write(`
+      <!DOCTYPE html><html><head><meta charset="UTF-8"><title>${filepath}</title>
+      <style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#000;}
+      ${type === 'video' ? 'video' : 'audio'}{max-width:100%;max-height:100vh;}</style></head><body>
+      <${type === 'video' ? 'video controls autoplay' : 'audio controls autoplay'} src="${url}"></${type}>
+      </body></html>`);
+  } else {
+    // Try to download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filepath.split('/').pop();  // Use filename only for download attr
+    a.click();
+  }
+}
+
+async function deleteFile(filepath) {
+  const displayName = filepath.split('/').pop();
+  if (!confirm(`确定删除 "${displayName}" 吗?`)) return;
+  try {
+    await fetch('/api/files/' + encodeURIComponent(filepath), { method: 'DELETE' });
+    refreshFileList();
+    toast(`已删除 ${displayName}`, 'info');
+  } catch (err) {
+    toast('删除失败', 'info');
+  }
+}
+
+// ============================================================
+// SSE - Real-time updates
+// ============================================================
+function connectSSE() {
+  const es = new EventSource('/api/stream');
+
+  es.addEventListener('connected', () => {
+    console.log('SSE connected');
+  });
+
+  es.addEventListener('new_files', (e) => {
+    const data = JSON.parse(e.data);
+    for (const f of data.files) {
+      toast(`📨 新文件: ${f.name} (${f.size_human})`, 'success');
+    }
+    // Refresh if on receive tab
+    if (document.getElementById('panelReceive').classList.contains('active')) {
+      refreshFileList();
+    }
+  });
+
+  es.addEventListener('files_deleted', () => {
+    if (document.getElementById('panelReceive').classList.contains('active')) {
+      refreshFileList();
+    }
+  });
+
+  es.addEventListener('ping', () => {}); // Keep-alive
+
+  es.onerror = () => {
+    console.warn('SSE connection lost, reconnecting in 3s...');
+    es.close();
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+// ============================================================
+// Clipboard Paste (global)
+// ============================================================
+document.addEventListener('paste', async (e) => {
+  // Only handle if not in a textarea/input
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const resp = await fetch('/api/clipboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'image', data: reader.result }),
+          });
+          const data = await resp.json();
+          if (data.status === 'ok') {
+            toast('✅ 剪贴板图片已发送', 'success');
+          }
+        } catch (err) {
+          toast('❌ 发送失败', 'info');
+        }
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
+
+    if (item.type === 'text/plain') {
+      item.getAsString(async (text) => {
+        if (!text.trim()) return;
+        e.preventDefault();
+        try {
+          const resp = await fetch('/api/clipboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'text', content: text }),
+          });
+          const data = await resp.json();
+          if (data.status === 'ok') {
+            toast('✅ 剪贴板文本已发送', 'success');
+          }
+        } catch (err) {
+          toast('❌ 发送失败', 'info');
+        }
+      });
+      return;
+    }
+  }
+});
+
+// ============================================================
+// Toast Notifications
+// ============================================================
+function toast(msg, type) {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+// ============================================================
+// Scan Modal
+// ============================================================
+function openScanModal() {
+  document.getElementById('scanModal').classList.add('open');
+  document.getElementById('scanResults').innerHTML = '<div class="scan-status">点击下方按钮开始扫描</div>';
+  document.getElementById('scanBtn').disabled = false;
+}
+function closeScanModal() {
+  document.getElementById('scanModal').classList.remove('open');
+}
+async function startScan() {
+  const btn = document.getElementById('scanBtn');
+  const results = document.getElementById('scanResults');
+  btn.disabled = true;
+  btn.textContent = '⏳ 扫描中...';
+  results.innerHTML = '<div class="scan-status"><span class="spinner"></span> 正在扫描局域网 (2秒)...</div>';
+
+  try {
+    const resp = await fetch('/api/discover');
+    const data = await resp.json();
+    const servers = data.servers;
+
+    if (servers.length === 0) {
+      results.innerHTML = '<div class="scan-status">未发现其他传输服务<br><small>请确保发送方已启动程序</small></div>';
+    } else {
+      results.innerHTML = servers.map(s => `
+        <div class="server-item" onclick="window.open('http://${s.ip}:${s.port}', '_blank')">
+          <div>
+            <div class="server-name">🖥️ ${escapeHtml(s.hostname)}</div>
+            <div class="server-addr">http://${s.ip}:${s.port}</div>
+          </div>
+          <span style="font-size:1.2rem;">→</span>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    results.innerHTML = '<div class="scan-status">扫描失败: ' + err.message + '</div>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔄 重新扫描';
+}
+
+// Click outside modal to close
+document.getElementById('scanModal').addEventListener('click', function(e) {
+  if (e.target === this) closeScanModal();
+});
+
+// ============================================================
+// Init
+// ============================================================
+connectSSE();
+refreshFileList();
+</script>
+</body>
+</html>
