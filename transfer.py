@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 import uuid
+import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import unquote
@@ -582,6 +583,8 @@ def parse_args():
                         help="Disable auto-cleanup of old files")
     parser.add_argument("--no-discovery", action="store_true",
                         help="Disable LAN discovery")
+    parser.add_argument("--no-browser", action="store_true",
+                        help="Don't auto-open browser on startup")
     return parser.parse_args()
 
 
@@ -669,6 +672,15 @@ def main():
         threaded=True,
         request_handler=TLSDetectHandler,
     )
+
+    # Auto-open browser
+    if not args.no_browser:
+        def _open_browser():
+            time.sleep(1.5)  # Wait for server to be ready
+            url = f"http://127.0.0.1:{port}"
+            print(f"  🌐  Opening browser: {url}")
+            webbrowser.open(url)
+        threading.Thread(target=_open_browser, daemon=True).start()
 
     try:
         server.serve_forever()
